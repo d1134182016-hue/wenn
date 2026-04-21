@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拉斯維加斯點名秀 - 命運之牌</title>
+    <style>
+        /* CSS 樣式 - 定義豪華賭博風格 */
+        body {
+            margin: 0;
+            padding: 0;
+            /* === 變更 1：背景改為深綠色賭桌風 === */
+            background-color: #004d40; /* 深綠色 */
+            background-image: radial-gradient(#00695c 10%, transparent 10%);
+            background-size: 20px 20px;
+            font-family: 'Noto Sans TC', sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; /* 防止上傳動畫時出現捲軸 */
+        }
+
+        h1 {
+            color: #ffd700; /* 黃金配色 */
+            text-shadow: 0 0 10px #ffd700, 0 0 20px #ff4500;
+            margin-top: 30px;
+            font-size: 3em;
+            letter-spacing: 2px;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px; /* 為 3D 翻牌效果準備 */
+        }
+
+        /* 荷官區域 */
+        #dealer {
+            position: absolute;
+            top: 50px;
+            font-size: 1.2em;
+            color: #eee;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        /* 撲克牌區域 */
+        .card-area {
+            display: flex;
+            gap: 40px;
+            margin-top: 100px;
+        }
+
+        /* 撲克牌基礎樣式與 3D 翻轉準備 */
+        .card {
+            width: 200px;
+            height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 翻牌動畫 */
+            cursor: pointer;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 卡片發牌前的初始狀態 (在螢幕上方外) */
+        .card.dealing {
+            transform: translateY(-800px) rotate(720deg) scale(0.5);
+            opacity: 0;
+        }
+
+        /* 卡片發牌後的狀態 (準備被點擊) */
+        .card.ready {
+            transform: translateY(0) rotate(0deg) scale(1);
+            opacity: 1;
+        }
+
+        /* 翻牌狀態 */
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* 卡片正面與背面 */
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 15px;
+            backface-visibility: hidden; /* 翻轉時隱藏背面 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            font-weight: bold;
+            box-sizing: border-box;
+            border: 5px solid #ffd700; /* 金邊 */
+        }
+
+        /* 卡片背面 (華麗圖案) */
+        .card-back {
+            background: repeating-linear-gradient(
+                45deg,
+                #800000,
+                #800000 10px,
+                #a52a2a 10px,
+                #a52a2a 20px
+            );
+            color: #ffd700;
+        }
+
+        .card-back::after {
+            content: "♠♥♦♣";
+            font-size: 1.5em;
+            opacity: 0.3;
+        }
+
+        /* 卡片正面 (中獎名單) */
+        .card-front {
+            background-color: white;
+            color: black;
+            transform: rotateY(180deg); /* 初始就反轉 */
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .card-front .suits {
+            font-size: 0.5em;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: red;
+        }
+
+        /* === 變更 2：單個字放大顯示 === */
+        .student-char {
+            font-size: 3em; /* 放大字體 */
+            color: #333;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 按鈕樣式 */
+        #draw-btn {
+            margin-top: 50px;
+            padding: 15px 40px;
+            font-size: 1.5em;
+            background: linear-gradient(#ff4500, #8b0000);
+            color: white;
+            border: 3px solid #ffd700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #ff4500;
+            transition: all 0.2s;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #draw-btn:hover {
+            box-shadow: 0 0 30px #ffd700;
+            transform: scale(1.05);
+        }
+
+        #draw-btn:disabled {
+            background: #555;
+            border-color: #888;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>皇家賭場</h1>
+
+    <div id="game-container">
+        <div id="dealer">🎲 荷官正在洗牌...</div>
+        
+        <div class="card-area">
+            <div class="card dealing" id="card1" onclick="flipCard(this)">
+                <div class="card-face card-back"></div>
+                <div class="card-face card-front">
+                    <div class="suits">♥ A</div>
+                    <div class="student-char">?</div>
+                </div>
+            </div>
+            <div class="card dealing" id="card2" onclick="flipCard(this)">
+                <div class="card-face card-back"></div>
+                <div class="card-face card-front">
+                    <div class="suits">♠ K</div>
+                    <div class="student-char">?</div>
+                </div>
+            </div>
+            <div class="card dealing" id="card3" onclick="flipCard(this)">
+                <div class="card-face card-back"></div>
+                <div class="card-face card-front">
+                    <div class="suits">♦ Q</div>
+                    <div class="student-char">?</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="draw-btn" onclick="startDealing()">下注（開始抽籤）</button>
+
+    <script>
+        // JavaScript 邏輯 - 處理抽籤與動畫
+
+        // === 1. 請在這裡修改同學名單 ===
+        // 建議名字都是三個字的，效果最好
+        const students = ["曹瀚文", "沈俊言", "王奕閎", "張雅喬"];
+        // ============================
+
+        const cards = document.querySelectorAll('.card');
+        const studentCharDisplays = document.querySelectorAll('.student-char');
+        const drawBtn = document.getElementById('draw-btn');
+        const dealer = document.getElementById('dealer');
+        let canFlip = false; // 控制是否可以翻牌
+        let flippedCount = 0; // 記錄翻開了幾張牌
+        let currentSelectedName = ""; // 記錄當前抽中的名字
+
+        // 初始化：荷官狀態
+        window.onload = () => {
+            dealer.innerText = `🎰 賭局準備就緒。共有 ${students.length} 名玩家（同學）。`;
+        };
+
+        // 發牌動畫函數
+        function startDealing() {
+            // 1. 重置狀態
+            drawBtn.disabled = true;
+            canFlip = false;
+            flippedCount = 0;
+            dealer.innerText = "🃏 荷官正在發牌... 請稍候...";
+            
+            // 2. === 變更 3：隨機抽取「一名」同學 ===
+            const randomIndex = Math.floor(Math.random() * students.length);
+            currentSelectedName = students[randomIndex];
+
+            // 3. === 變更 4：將名字拆解成單個字 ===
+            // 預設為 "?" 防止名字長度不足
+            const nameChars = ["?", "?", "?"]; 
+            for (let i = 0; i < Math.min(currentSelectedName.length, 3); i++) {
+                nameChars[i] = currentSelectedName[i];
+            }
+
+            // 4. 將字寫入卡片正面，並確保卡片是蓋上的
+            cards.forEach((card, index) => {
+                card.classList.remove('flipped', 'ready');
+                card.classList.add('dealing'); // 回到上方
+                studentCharDisplays[index].innerText = nameChars[index];
+            });
+
+            // 5. 觸發飛入動畫
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.remove('dealing');
+                    card.classList.add('ready');
+                    
+                    // 當最後一張牌發完
+                    if(index === cards.length - 1) {
+                        setTimeout(() => {
+                            dealer.innerText = "💰 發牌完成！請按順序翻開命運之牌！";
+                            canFlip = true;
+                        }, 800);
+                    }
+                }, index * 300); // 每張牌間隔 300ms
+            });
+        }
+
+        // 翻牌函數
+        function flipCard(cardElement) {
+            if (!canFlip) return; // 發牌中不能翻
+            if (cardElement.classList.contains('flipped')) return; // 翻過的不能再翻
+
+            // 翻開點擊的卡片
+            cardElement.classList.add('flipped');
+            flippedCount++;
+
+            // === 變更 5：根據翻牌張數更新荷官語句 ===
+            if (flippedCount === 1) {
+                dealer.innerText = "哦？姓... (請翻開下一張)";
+            } else if (flippedCount === 2) {
+                dealer.innerText = "名是... (最後一張！)";
+            } else if (flippedCount === 3) {
+                // 全部翻開，公佈答案
+                setTimeout(() => {
+                    dealer.innerHTML = `🎉 恭喜 **<span style="color:#ffd700; font-size:1.5em;">${currentSelectedName}</span>**！<br>你被幸運女神選中回答問題了！`;
+                    
+                    // 2秒後恢復按鈕，準備下一局
+                    setTimeout(() => {
+                        drawBtn.disabled = false;
+                        drawBtn.innerText = "再續一局";
+                    }, 2000);
+                }, 800);
+            }
+        }
+    </script>
+</body>
+</html>
